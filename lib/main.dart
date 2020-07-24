@@ -1,10 +1,9 @@
 import 'dart:convert';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
-
+import 'package:fluttertoast/fluttertoast.dart';
 import 'mqtt.dart';
 
 void main() {
@@ -37,46 +36,59 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
-  var client;
-
+  var _client;
+  var _json;
+  var _data;
   @override
   void initState() {
     super.initState();
     flutterLocalNotificationsPlugin = new FlutterLocalNotificationsPlugin();
-    client = clienttest('broker.emqx.io', 'flutter_client', 1883);
+    readJSON();
+  }
+
+  //读取JSON
+  Future<void> readJSON() async {
+    _json = DefaultAssetBundle.of(context).loadString('assets/send.json');
+    _data = JsonDecoder().convert(await _json);
   }
 
   //开锁控制
-  Future<void> _unlock() async {
-    //client.subscribe("get");
-    client.sendmsg();
-//    final json = DefaultAssetBundle.of(context).loadString('assets/send.json');
-//    final data = JsonDecoder().convert(await json);
-//    Response response;
-//    Dio dio = Dio();
-//    try {
-//      //response = await dio.post("/test", data: data["unlock"]);
-//      response = await dio.get("http://www.baidu.com");
-//      print(response);
-//      showNotification("Unlocked!");
-//    } catch (e) {
-//      print("Fatal errors!!!");
-//    }
+  void _unlock() {
+    _client.sendMsg(_data["unlock"].toString(), "out");
+    if (_client.msgIn == 'OK') {
+      Fluttertoast.showToast(
+        msg: "开锁成功",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+      );
+      print("ok");
+    } else {
+      Fluttertoast.showToast(
+        msg: "开锁失败",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+      );
+      print("no");
+    }
   }
 
   //上锁控制
   Future<void> _lock() async {
-    final json = DefaultAssetBundle.of(context).loadString('assets/send.json');
-    final data = JsonDecoder().convert(await json);
-    Response response;
-    Dio dio = Dio();
-    try {
-      //response = await dio.post("/test", data: data["lock"]);
-      response = await dio.get("http://www.baidu.com");
-      print(response);
-    } catch (e) {
-      print("Fatal errors!!!");
-    }
+    _client.sendMsg(_data["lock"].toString(), "out");
+    Future.delayed(Duration(milliseconds: 1000), () {
+      if (_client.msgIn == 'OK')
+        Fluttertoast.showToast(
+          msg: "上锁成功",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+        );
+      else
+        Fluttertoast.showToast(
+          msg: "上锁失败",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+        );
+    });
   }
 
 //发送通知
@@ -96,7 +108,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    client.connect().then((val) => client.subscribe("get"));
+    Future(() {
+      _client = mqtt_app('broker.emqx.io', 'flutter_client', 1883);
+    }).then((value) => _client.subscribe("get"));
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
