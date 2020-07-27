@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:fijkplayer/fijkplayer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
@@ -35,7 +36,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
+  final FijkPlayer player = FijkPlayer();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      new FlutterLocalNotificationsPlugin();
   var _client;
   var _json;
   var _data;
@@ -44,15 +47,17 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    flutterLocalNotificationsPlugin = new FlutterLocalNotificationsPlugin();
+    player.setDataSource("rtmp://52.184.15.163:666/videotest/test",
+        autoPlay: false);
     var android = new AndroidInitializationSettings('@mipmap/ic_launcher');
     var iOS = new IOSInitializationSettings();
     var initSetttings = new InitializationSettings(android, iOS);
     flutterLocalNotificationsPlugin.initialize(initSetttings,
         onSelectNotification: onSelectNotification);
-    _client = MqttApp('broker.emqx.io', 'flutter_client', 1883);
+    _client = MqttApp('52.184.15.163', 'flutter_client', 1883);
     readJSON();
   }
+
   //通知初始化
   Future onSelectNotification(String payload) {
     debugPrint("payload : $payload");
@@ -73,7 +78,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   //开锁控制
   void _unlock() {
-    _client.sendMsg(_data["unlock"].toString(), "out");
+    _client.sendMsg("print_msg3 hello world!", "test");
     Future.delayed(Duration(milliseconds: 5000), () {
       if (_client.msgIn == 'OK') {
         Fluttertoast.showToast(
@@ -138,10 +143,7 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[],
-        ),
+        child: FijkView(player: player),
       ),
       floatingActionButton: SpeedDial(child: Icon(Icons.menu), children: [
         SpeedDialChild(

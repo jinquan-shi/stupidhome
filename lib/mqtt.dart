@@ -40,13 +40,13 @@ class MqttApp {
   }
 
   void subscribe(String topic) {
-    _client.subscribe(topic, MqttQos.atLeastOnce);
+    _client.subscribe(topic, MqttQos.exactlyOnce);
   }
 
   void sendMsg(String msg, String pubTopic) {
     final builder = MqttClientPayloadBuilder();
     builder.addString(msg);
-    _client.publishMessage(pubTopic, MqttQos.atLeastOnce, builder.payload);
+    _client.publishMessage(pubTopic, MqttQos.exactlyOnce, builder.payload);
   }
 
   // 连接成功
