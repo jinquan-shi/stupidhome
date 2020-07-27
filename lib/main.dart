@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:wifi_configuration/wifi_configuration.dart';
 import 'mqtt.dart';
 
 void main() {
@@ -119,7 +120,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-//发送通知
+  //发送通知
   Future _showNotification() async {
     //安卓的通知配置，必填参数是渠道id, 名称, 和描述, 可选填通知的图标，重要度等等。
     var androidPlatformChannelSpecifics = new AndroidNotificationDetails(
@@ -135,6 +136,45 @@ class _MyHomePageState extends State<MyHomePage> {
         payload: 'complete');
   }
 
+  //列表添加
+  Future<void> _list_add() async {
+    var listAvailableWifi = await WifiConfiguration.getWifiList();
+    print("get wifi list : " + listAvailableWifi.toString());
+//    WifiConnectionStatus connectionStatus = await WifiConfiguration.connectToWifi(
+//        "DarkBe@rs", "DarkBe@rs", "com.example.wifi_configuration_example");
+//    print("is Connected : ${connectionStatus}");
+////
+////
+//    switch (connectionStatus) {
+//      case WifiConnectionStatus.connected:
+//        print("connected");
+//        break;
+//
+//      case WifiConnectionStatus.alreadyConnected:
+//        print("alreadyConnected");
+//        break;
+//
+//      case WifiConnectionStatus.notConnected:
+//        print("notConnected");
+//        break;
+//
+//      case WifiConnectionStatus.platformNotSupported:
+//        print("platformNotSupported");
+//        break;
+//
+//      case WifiConnectionStatus.profileAlreadyInstalled:
+//        print("profileAlreadyInstalled");
+//        break;
+//
+//      case WifiConnectionStatus.locationNotAllowed:
+//        print("locationNotAllowed");
+//        break;
+//    }
+//
+  }
+
+  //列表删除
+  void _list_delete() {}
   @override
   Widget build(BuildContext context) {
     _client.connect().then((value) => _client.subscribe("get"));
@@ -142,22 +182,20 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Text(widget.title),
       ),
-      body: Center(
-        child: FijkView(player: player),
-      ),
+      body: Center(),
       floatingActionButton: SpeedDial(child: Icon(Icons.menu), children: [
         SpeedDialChild(
-            child: Icon(Icons.lock_outline),
+            child: Icon(Icons.add),
             backgroundColor: Colors.red,
-            label: '上锁',
+            label: '添加设备',
             labelStyle: TextStyle(fontSize: 18.0),
-            onTap: () => _lock()),
+            onTap: () => _list_add()),
         SpeedDialChild(
-          child: Icon(Icons.lock_open),
+          child: Icon(Icons.delete),
           backgroundColor: Colors.orange,
-          label: '开锁',
+          label: '删除设备',
           labelStyle: TextStyle(fontSize: 18.0),
-          onTap: () => _unlock(),
+          onTap: () => _list_delete(),
         ),
       ]),
     );
