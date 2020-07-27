@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:fijkplayer/fijkplayer.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
@@ -43,7 +44,7 @@ class _MyHomePageState extends State<MyHomePage> {
   var _client;
   var _json;
   var _data;
-
+  List _listAvailableWifi;
   //初始化连接及通知服务
   @override
   void initState() {
@@ -138,39 +139,48 @@ class _MyHomePageState extends State<MyHomePage> {
 
   //列表添加
   Future<void> _list_add() async {
-    var listAvailableWifi = await WifiConfiguration.getWifiList();
-    print("get wifi list : " + listAvailableWifi.toString());
-//    WifiConnectionStatus connectionStatus = await WifiConfiguration.connectToWifi(
-//        "DarkBe@rs", "DarkBe@rs", "com.example.wifi_configuration_example");
-//    print("is Connected : ${connectionStatus}");
-////
-////
-//    switch (connectionStatus) {
-//      case WifiConnectionStatus.connected:
-//        print("connected");
-//        break;
-//
-//      case WifiConnectionStatus.alreadyConnected:
-//        print("alreadyConnected");
-//        break;
-//
-//      case WifiConnectionStatus.notConnected:
-//        print("notConnected");
-//        break;
-//
-//      case WifiConnectionStatus.platformNotSupported:
-//        print("platformNotSupported");
-//        break;
-//
-//      case WifiConnectionStatus.profileAlreadyInstalled:
-//        print("profileAlreadyInstalled");
-//        break;
-//
-//      case WifiConnectionStatus.locationNotAllowed:
-//        print("locationNotAllowed");
-//        break;
-//    }
-//
+    List tmp = [];
+    _listAvailableWifi = await WifiConfiguration.getWifiList();
+    //仅供测试
+    for (var item in _listAvailableWifi) {
+      if (item.toString().split(" ")[0] == "LY") tmp.add(item);
+    }
+    _listAvailableWifi = tmp;
+    showDialog<Null>(
+      context: context,
+      builder: (BuildContext context) {
+        return new AlertDialog(
+          useMaterialBorderRadius: true,
+          title: new Text('设备列表'),
+          content: Container(
+            width: 70,
+            height: 80,
+            child: ListView.builder(
+              itemCount: _listAvailableWifi.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  title: Text(_listAvailableWifi[index].toString()),
+                  onTap: () {
+                    var status = WifiConfiguration.connectToWifi(
+                        _listAvailableWifi[index].toString(),
+                        '',
+                        "stupidmembers.stupidhome");
+                    if (status ==0 ||
+                        status ==1) {
+                      print('succeed');
+                    } else {
+                      print('error');
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      },
+    ).then((val) {
+      print(val);
+    });
   }
 
   //列表删除
