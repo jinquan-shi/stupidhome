@@ -1,11 +1,13 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:fijkplayer/fijkplayer.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:mqtt_client/mqtt_client.dart';
 import 'package:wifi_configuration/wifi_configuration.dart';
 import 'mqtt.dart';
 
@@ -44,11 +46,13 @@ class _MyHomePageState extends State<MyHomePage> {
   var _client;
   var _json;
   var _data;
-  List _listAvailableWifi;
+  var _app_id;
+
   //初始化连接及通知服务
   @override
   void initState() {
     super.initState();
+    _app_id = 'app';
     player.setDataSource("rtmp://52.184.15.163:666/videotest/test",
         autoPlay: false);
     var android = new AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -56,7 +60,7 @@ class _MyHomePageState extends State<MyHomePage> {
     var initSetttings = new InitializationSettings(android, iOS);
     flutterLocalNotificationsPlugin.initialize(initSetttings,
         onSelectNotification: onSelectNotification);
-    _client = MqttApp('52.184.15.163', 'flutter_client', 1883);
+
     readJSON();
   }
 
@@ -140,53 +144,102 @@ class _MyHomePageState extends State<MyHomePage> {
   //列表添加
   Future<void> _list_add() async {
     List tmp = [];
+    List _listAvailableWifi = [];
     _listAvailableWifi = await WifiConfiguration.getWifiList();
     //仅供测试
     for (var item in _listAvailableWifi) {
-      if (item.toString().split(" ")[0] == "LY") tmp.add(item);
+      if (item.toString().split("-")[0] == "MicroPython") tmp.add(item);
     }
     _listAvailableWifi = tmp;
     showDialog<Null>(
       context: context,
       builder: (BuildContext context) {
-        return new AlertDialog(
+        return new SimpleDialog(
           useMaterialBorderRadius: true,
           title: new Text('设备列表'),
-          content: Container(
-            width: 70,
-            height: 80,
-            child: ListView.builder(
-              itemCount: _listAvailableWifi.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(_listAvailableWifi[index].toString()),
-                  onTap: () {
-                    var status = WifiConfiguration.connectToWifi(
-                        _listAvailableWifi[index].toString(),
-                        '',
-                        "stupidmembers.stupidhome");
-                    if (status ==0 ||
-                        status ==1) {
-                      print('succeed');
-                    } else {
-                      print('error');
+          children: [
+            for (var item in _listAvailableWifi)
+              Card(
+                elevation: 0.0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14.0)),
+                child: ListTile(
+                  leading: Icon(Icons.wifi),
+                  title: Text(item.toString()),
+                  onTap: () async {
+                    var connection = await WifiConfiguration.connectToWifi(
+                        item.toString(),
+                        'sl172919',
+                        'stupidmembers.stupidhome');
+                    if (!(connection == WifiConnectionStatus.alreadyConnected ||
+                        connection == WifiConnectionStatus.connected)) {
+                      Fluttertoast.showToast(
+                        msg: "连接失败！",
+                        toastLength: Toast.LENGTH_SHORT,
+                        gravity: ToastGravity.CENTER,
+                        timeInSecForIosWeb: 1,
+                        backgroundColor: Colors.grey[200],
+                        textColor: Colors.black,
+                      );
+                      return;
                     }
+                    var dio = Dio();
+                    //TODO: need to set the home wifi
+                    var request =
+                        '{"magic_number":"123"，"app_id":"app"，"wifi":"wifi_name"，"password":"password"}';
+                    var result = await dio
+                        .request('http://192.168.0.1:8989/',
+                            data: jsonEncode(request))
+                        .toString();
+                    var _devide_id = jsonDecode(result)["device_id"];
+                    _client.sendMsg(
+                        'add_app' +
+                            _devide_id +
+                            _app_id +
+                            DateTime.fromMillisecondsSinceEpoch(
+                                    DateTime.now().millisecondsSinceEpoch)
+                                .toString(),
+                        'toServer');
+                    for (int i = 0; i < 10; i++)
+                      Future.delayed(Duration(milliseconds: 500), () {
+                        try {
+                          if (jsonDecode(_client.msgIn)["state"] == '1') {
+                            Fluttertoast.showToast(
+                              msg: "连接失败！",
+                              toastLength: Toast.LENGTH_SHORT,
+                              gravity: ToastGravity.CENTER,
+                              timeInSecForIosWeb: 1,
+                              backgroundColor: Colors.grey[200],
+                              textColor: Colors.black,
+                            );
+                            return;
+                          }
+                        } catch (e) {
+                          Fluttertoast.showToast(
+                            msg: "连接失败！",
+                            toastLength: Toast.LENGTH_SHORT,
+                            gravity: ToastGravity.CENTER,
+                            timeInSecForIosWeb: 1,
+                            backgroundColor: Colors.grey[200],
+                            textColor: Colors.black,
+                          );
+                          return;
+                        }
+                      });
                   },
-                );
-              },
-            ),
-          ),
+                ),
+              )
+          ],
         );
       },
-    ).then((val) {
-      print(val);
-    });
+    );
   }
 
   //列表删除
   void _list_delete() {}
   @override
   Widget build(BuildContext context) {
+    _client = MqttApp('52.184.15.163', 'flutter_client', 1883, context);
     _client.connect().then((value) => _client.subscribe("get"));
     return Scaffold(
       appBar: AppBar(
