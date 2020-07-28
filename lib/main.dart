@@ -171,7 +171,6 @@ class _MyHomePageState extends State<MyHomePage> {
       context: context,
       builder: (BuildContext context) {
         return new SimpleDialog(
-          useMaterialBorderRadius: true,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.0)),
           title: new Text('设备列表'),
@@ -262,7 +261,6 @@ class _MyHomePageState extends State<MyHomePage> {
       context: context,
       builder: (BuildContext context) {
         return new SimpleDialog(
-          useMaterialBorderRadius: true,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.0)),
           title: new Text('设备列表'),
@@ -311,7 +309,6 @@ class _MyHomePageState extends State<MyHomePage> {
                       context: context,
                       builder: (BuildContext context) {
                         return SimpleDialog(
-                          useMaterialBorderRadius: true,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14.0)),
                           children: [
