@@ -9,13 +9,12 @@ class MqttApp {
   int port;
   MqttServerClient _client;
   BuildContext context;
-  MqttApp(String host, String identifier, int port,BuildContext context) {
+  MqttApp(String host, String identifier, int port) {
     this.port = port;
     this.identifier = identifier;
     this.host = host;
     this._client =
         MqttServerClient.withPort(this.host, this.identifier, this.port);
-    this.context=context;
   }
 
   Future<void> connect() async {
@@ -47,7 +46,6 @@ class MqttApp {
       final payload =
       MqttPublishPayload.bytesToStringAsString(message.payload.message);
       this.msgIn = payload;
-      onMqttReceived().dispatch(context);
       print('Received message:$payload from topic: ${c[0].topic}>');
     });
   }
@@ -88,8 +86,4 @@ class MqttApp {
   }
 
 
-}
-
-class onMqttReceived extends Notification {
-  onMqttReceived();
 }
