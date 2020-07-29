@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:wifi_configuration/wifi_configuration.dart';
 import 'mqtt.dart';
 
@@ -47,7 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
   var _data;
   var _appId;
   var _deviceList = ['test1'];
-
+  var _dio = Dio();
   //初始化连接及通知服务
   @override
   void initState() {
@@ -83,8 +84,38 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   //开锁控制
-  void _unlock() {
-    _client.sendMsg("print_msg3 hello world!", "test");
+  Future<void> _unlock() async {
+    _client.sendMsg(
+        "unlock device app " +
+            DateTime.fromMillisecondsSinceEpoch(
+                    DateTime.now().millisecondsSinceEpoch)
+                .toString(),
+        "toserver");
+    //TODO:可能需要更改地址
+    var response = _dio.post(
+      'http://192.168.43.103:5000/test',
+      data: {
+        "name": "unlock",
+        "topic": "device",
+        "topic2": "app",
+        "time": DateTime.fromMillisecondsSinceEpoch(
+                DateTime.now().millisecondsSinceEpoch)
+            .toString()
+      },
+    ).toString();
+    print(response.toString());
+    if (response == '1') {
+      Fluttertoast.showToast(
+        msg: "连接失败！",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.CENTER,
+        timeInSecForIosWeb: 1,
+        backgroundColor: Colors.grey[200],
+        textColor: Colors.black,
+      );
+      return;
+    }
+
     Future.delayed(Duration(milliseconds: 5000), () {
       if (_client.msgIn == 'OK') {
         Fluttertoast.showToast(
@@ -108,20 +139,53 @@ class _MyHomePageState extends State<MyHomePage> {
 
   //上锁控制
   Future<void> _lock() async {
-    _client.sendMsg(_data["lock"].toString(), "out");
-    Future.delayed(Duration(milliseconds: 1000), () {
-      if (_client.msgIn == 'OK')
+    _client.sendMsg(
+        "lock device app " +
+            DateTime.fromMillisecondsSinceEpoch(
+                    DateTime.now().millisecondsSinceEpoch)
+                .toString(),
+        "toserver");
+    //TODO:可能需要更改地址
+    Response response =
+        await _dio.post('http://192.168.43.103:5000/test', data: {
+      "name": "lock",
+      "topic": "device",
+      "topic2": "app",
+      "time": DateTime.fromMillisecondsSinceEpoch(
+              DateTime.now().millisecondsSinceEpoch)
+          .toString()
+    });
+    print(response.toString());
+    if (response.toString() == '1') {
+      Fluttertoast.showToast(
+        msg: "连接失败f！",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.CENTER,
+        timeInSecForIosWeb: 1,
+        backgroundColor: Colors.grey[200],
+        textColor: Colors.black,
+      );
+      return;
+    }
+
+    Future.delayed(Duration(milliseconds: 5000), () {
+      if (_client.msgIn == 'OK') {
         Fluttertoast.showToast(
           msg: "上锁成功",
           toastLength: Toast.LENGTH_SHORT,
           gravity: ToastGravity.BOTTOM,
         );
-      else
+        print("ok");
+        _showNotification();
+      } else {
         Fluttertoast.showToast(
           msg: "上锁失败",
           toastLength: Toast.LENGTH_SHORT,
           gravity: ToastGravity.BOTTOM,
         );
+        print("no");
+        _showNotification();
+      }
     });
   }
 
@@ -139,6 +203,44 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           );
         });
+  }
+
+  //图片下载
+  Future<void> capture() async {
+    //TODO:可能需要改地址
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          return Scaffold(
+            appBar: AppBar(
+              title: Text("Picture"),
+            ),
+            body: Column(
+              children: [
+                Container(
+                    child: Image(
+                        image: NetworkImage(
+                            "http://192.168.43.103:5000/get_pic"))),
+                RaisedButton(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6.0)),
+                    child: Text('保存'),
+                    onPressed: () async {
+                      if (await Permission.storage.request().isDenied) {
+                        Permission.storage.request();
+                      }
+                      Response response = await _dio.download(
+                        'http://192.168.43.103:5000/get_pic',
+                        '/storage/emulated/0/DCIM/TEST.jpg',
+                      );
+                    })
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   //发送通知
@@ -159,6 +261,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
   //列表添加
   Future<void> _listAdd() async {
+    if (await Permission.location.request().isDenied) {
+      Permission.location.request();
+    }
     List tmp = [];
     List _listAvailableWifi = [];
     _listAvailableWifi = await WifiConfiguration.getWifiList();
@@ -200,11 +305,11 @@ class _MyHomePageState extends State<MyHomePage> {
                       );
                       return;
                     }
-                    var dio = Dio();
+
                     //TODO: need to set the home wifi
                     var request =
                         '{"magic_number":"123"，"app_id":"app"，"wifi":"wifi_name"，"password":"password"}';
-                    var result = dio
+                    var result = _dio
                         .request('http://192.168.0.1:8989/',
                             data: jsonEncode(request))
                         .toString();
@@ -289,7 +394,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     _client = MqttApp('52.184.15.163', 'flutter_client', 1883);
-    _client.connect().then((value) => _client.subscribe("get"));
+    _client.connect().then((value) => _client.subscribe("toapp"));
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -351,9 +456,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                   Icons.camera,
                                   color: Colors.yellow,
                                 ),
-                                title: Text('串流'),
+                                title: Text('拍照'),
                                 onTap: () {
-                                  _stream();
+                                  capture();
                                 },
                               ),
                             ),
