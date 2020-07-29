@@ -44,8 +44,6 @@ class _MyHomePageState extends State<MyHomePage> {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       new FlutterLocalNotificationsPlugin();
   var _client;
-  var _json;
-  var _data;
   var _appId;
   var _deviceList = ['test1'];
   var _dio = Dio();
@@ -79,8 +77,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   //读取JSON
   Future<void> readJSON() async {
-    _json = DefaultAssetBundle.of(context).loadString('assets/send.json');
-    _data = JsonDecoder().convert(await _json);
   }
 
   //开锁控制
@@ -230,7 +226,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       if (await Permission.storage.request().isDenied) {
                         Permission.storage.request();
                       }
-                      Response response = await _dio.download(
+                    await _dio.download(
                         'http://192.168.43.103:5000/get_pic',
                         '/storage/emulated/0/DCIM/TEST.jpg',
                       );
