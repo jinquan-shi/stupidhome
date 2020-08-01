@@ -1,23 +1,30 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
+import 'package:stupidhome/notify.dart';
+import 'main.dart';
 
 class MqttApp {
   String host;
   String identifier;
-  String msgIn, msgOut;
+  var msgIn, msgOut;
   int port;
   MqttServerClient _client;
   BuildContext context;
-  MqttApp(String host, String identifier, int port) {
+  NotificationManager notificationManager;
+  MqttApp(String host, String identifier, int port,
+      NotificationManager notificationManager) {
     this.port = port;
     this.identifier = identifier;
     this.host = host;
     this._client =
         MqttServerClient.withPort(this.host, this.identifier, this.port);
+    this.notificationManager = notificationManager;
   }
 
-  Future<void> connect() async {
+  Future<int> connect() async {
     _client.logging(on: true);
     _client.onConnected = onConnected;
     _client.onDisconnected = onDisconnected;
@@ -32,27 +39,53 @@ class MqttApp {
       print('Exception: $e');
       _client.disconnect();
     }
-    listen();
+    _client.updates.listen((
+      List<MqttReceivedMessage<MqttMessage>> c,
+    ) {
+      final MqttPublishMessage message = c[0].payload;
+      final payload =
+          MqttPublishPayload.bytesToStringAsString(message.payload.message);
+
+      try {
+        this.msgIn = jsonDecode(payload);
+      } catch (e) {
+        this.msgIn = payload;
+      }
+      try {
+        if (msgIn.split(' ')[0] == 'find_stranger') {
+          notificationManager.showNotification('注意', '发现陌生人');
+        }
+      } catch (e) {}
+      try {
+        if (msgIn['action_name'] == 'hand_shake' && msgIn['state'] == 0) {
+          //deviceList.add(msgIn['device_id']);
+        }
+      } catch (e) {}
+      print(payload);
+    });
+
+    return 1;
   }
 
-  void subscribe(String topic) {
+  Future<void> subscribe(String topic) async {
+    var count=0;
+    while (_client.connectionStatus.state != MqttConnectionState.connected&&count<1000) {
+      _client.connect();
+      Future.delayed(Duration(milliseconds: 5000), () {});
+      count++;
+    }
     _client.subscribe(topic, MqttQos.exactlyOnce);
   }
 
-
-  void listen(){
-    _client.updates.listen((List<MqttReceivedMessage<MqttMessage>> c,) {
-      final MqttPublishMessage message = c[0].payload;
-      final payload =
-      MqttPublishPayload.bytesToStringAsString(message.payload.message);
-      this.msgIn = payload;
-      print('Received message:$payload from topic: ${c[0].topic}>');
-    });
-  }
+  void listen() {}
   void sendMsg(String msg, String pubTopic) {
     final builder = MqttClientPayloadBuilder();
     builder.addString(msg);
     _client.publishMessage(pubTopic, MqttQos.exactlyOnce, builder.payload);
+  }
+
+  Future<void> mqttdisconnect() async {
+    await _client.disconnect();
   }
 
   // 连接成功
@@ -84,6 +117,4 @@ class MqttApp {
   void pong() {
     print('Ping response client callback invoked');
   }
-
-
 }
